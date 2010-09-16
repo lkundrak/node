@@ -336,14 +336,16 @@ def configure(conf):
 
     if not o.shared_v8_libname: o.shared_v8_libname = 'v8'
 
-    if not conf.check_cxx(lib=o.shared_v8_libname, header_name='v8.h',
+    v8_lib = [ 'pthread', o.shared_v8_libname ];
+    if not conf.check_cxx(lib=v8_lib, header_name='v8.h',
                           uselib_store='V8',
                           includes=v8_includes,
                           libpath=v8_libpath):
       conf.fatal("Cannot find v8")
 
     if o.debug:
-      if not conf.check_cxx(lib=o.shared_v8_libname + '_g', header_name='v8.h',
+      v8_lib_debug = [ 'pthread', o.shared_v8_libname + '_g' ];
+      if not conf.check_cxx(lib=v8_lib_debug, header_name='v8.h',
                             uselib_store='V8_G',
                             includes=v8_includes,
                             libpath=v8_libpath):
