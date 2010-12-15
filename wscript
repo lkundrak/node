@@ -325,8 +325,6 @@ def configure(conf):
     if not conf.check(lib='nsl', uselib_store="NSL"):
       conf.fatal("Cannot find nsl library")
 
-  conf.sub_config('deps/libeio')
-
   if conf.env['USE_SHARED_V8']:
     v8_includes = [];
     if o.shared_v8_includes: v8_includes.append(o.shared_v8_includes);
@@ -383,8 +381,6 @@ def configure(conf):
       conf.fatal("Cannot find libev")
   else:
     conf.sub_config('deps/libev')
-
-
 
   conf.define("HAVE_CONFIG_H", 1)
 
@@ -448,6 +444,14 @@ def configure(conf):
     conf.env.append_value('CPPFLAGS', '-DHAVE_FDATASYNC=1')
   else:
     conf.env.append_value('CPPFLAGS', '-DHAVE_FDATASYNC=0')
+
+  if not conf.check_cxx(lib='eio', header_name='eio.h',
+                        uselib_store='EIO'):
+    conf.fatal("Cannot find eio")
+
+  if not conf.check_cxx(lib='http_parser', header_name='http_parser.h',
+                        uselib_store='HTTP_PARSER'):
+    conf.fatal("Cannot find http-parser")
 
   # platform
   conf.env.append_value('CPPFLAGS', '-DPLATFORM="' + conf.env['DEST_OS'] + '"')
@@ -605,22 +609,10 @@ def build(bld):
   print "Parallel Jobs: " + str(Options.options.jobs)
   print "Product type: " + product_type
 
-  bld.add_subdirs('deps/libeio')
-
   if not bld.env['USE_SHARED_V8']: build_v8(bld)
   if not bld.env['USE_SHARED_LIBEV']: bld.add_subdirs('deps/libev')
   if not bld.env['USE_SHARED_CARES']: bld.add_subdirs('deps/c-ares')
 
-
-  ### http_parser
-  http_parser = bld.new_task_gen("cc")
-  http_parser.source = "deps/http_parser/http_parser.c"
-  http_parser.includes = "deps/http_parser/"
-  http_parser.name = "http_parser"
-  http_parser.target = "http_parser"
-  http_parser.install_path = None
-  if bld.env["USE_DEBUG"]:
-    http_parser.clone("debug")
 
   ### src/native.cc
   def make_macros(loc, content):
@@ -759,8 +751,7 @@ def build(bld):
   node = bld.new_task_gen("cxx", product_type)
   node.name         = "node"
   node.target       = "node"
-  node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL UTIL OPROFILE'
-  node.add_objects = 'eio http_parser'
+  node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL UTIL OPROFILE EIO HTTP_PARSER'
   if product_type_is_lib:
     node.install_path = '${PREFIX}/lib'
   else:
@@ -801,8 +792,6 @@ def build(bld):
 
   node.includes = """
     src/
-    deps/libeio
-    deps/http_parser
   """
 
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
