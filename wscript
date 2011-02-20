@@ -2,8 +2,8 @@
 import re
 import Options
 import sys, os, shutil, glob
-import Utils
-from Utils import cmd_output
+#import Utils
+#from Utils import cmd_output
 from os.path import join, dirname, abspath, normpath
 from logging import fatal
 
@@ -621,12 +621,12 @@ def build(bld):
     f.close
 
   macros_loc_debug   = join(
-     bld.srcnode.abspath(bld.env_of_name("debug")),
+     bld.srcnode.abspath(),
      "macros.py"
   )
 
   macros_loc_default = join(
-    bld.srcnode.abspath(bld.env_of_name("default")),
+    bld.srcnode.abspath(),
     "macros.py"
   )
 
@@ -659,8 +659,8 @@ def build(bld):
 
   def javascript_in_c(task):
     env = task.env
-    source = map(lambda x: x.srcpath(env), task.inputs)
-    targets = map(lambda x: x.srcpath(env), task.outputs)
+    source = map(lambda x: x.srcpath(), task.inputs)
+    targets = map(lambda x: x.srcpath(), task.outputs)
     source.append(macros_loc_default)
     js2c.JS2C(source, targets)
 
@@ -672,7 +672,7 @@ def build(bld):
     js2c.JS2C(source, targets)
 
   native_cc = bld.new_task_gen(
-    source='src/node.js ' + bld.path.ant_glob('lib/*.js'),
+    source='src/node.js ' + ' '.join(['lib/'+o.__str__() for o in bld.path.ant_glob('lib/*.js')]),
     target="src/node_natives.h",
     before="cxx",
     install_path=None
@@ -749,6 +749,7 @@ def build(bld):
 
   ### node lib
   node = bld.new_task_gen("cxx", product_type)
+  node.features     = [ 'cxx', 'cxxprogram' ]
   node.name         = "node"
   node.target       = "node"
   node.uselib = 'RT EV OPENSSL CARES EXECINFO DL KVM SOCKET NSL UTIL OPROFILE EIO HTTP_PARSER'
@@ -826,6 +827,7 @@ def build(bld):
   node_conf.target = 'src/node_config.h'
   node_conf.dict = subflags(node)
   node_conf.install_path = '${PREFIX}/include/node'
+  node_conf.features = [ 'subst' ]
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("debug")
@@ -853,19 +855,23 @@ def build(bld):
   if os.path.exists('doc/node.1'):
     bld.install_files('${PREFIX}/share/man/man1/', 'doc/node.1')
 
-  bld.install_files('${PREFIX}/bin/', 'tools/node-waf', chmod=0755)
-  bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
-  bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
+  #bld.install_files('${PREFIX}/bin/', 'tools/node-waf', chmod=0755)
+  #bld.install_files('${PREFIX}/lib/node/wafadmin', 'tools/wafadmin/*.py')
+  #bld.install_files('${PREFIX}/lib/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
 
   # create a pkg-config(1) file
   node_conf = bld.new_task_gen('subst', before="cxx")
   node_conf.source = 'tools/nodejs.pc.in'
   node_conf.target = 'tools/nodejs.pc'
   node_conf.dict = subflags(node)
+  node_conf.VERSION = '0.3.2'
+  node_conf.features = [ 'subst' ]
 
   bld.install_files('${PREFIX}/lib/pkgconfig', 'tools/nodejs.pc')
 
-def shutdown():
+def shutdown(context=None):
+  if context:
+    return
   Options.options.debug
   # HACK to get binding.node out of build directory.
   # better way to do this?
